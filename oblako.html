@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>🎤 Карааоке</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #1e1e2e;
+    --accent: #ff2d55;
+    --vip: #f5a623;
+    --text: #efefef;
+    --sub: #666;
+    --green: #00c97a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  #app { max-width: 500px; margin: 0 auto; }
+
+  /* ── Top bar ── */
+  .top-bar {
+    display: flex; gap: 8px; padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  .mode-btn {
+    flex: 1; padding: 10px 0; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--sub); font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .2s;
+  }
+  .mode-btn.active { background: var(--surface); color: var(--text); border-color: var(--accent); }
+
+  /* ── Screens ── */
+  .screen { display: none; padding: 0 16px; }
+  .screen.visible { display: block; }
+
+  /* ── Table select ── */
+  #screen-table { text-align: center; padding: 32px 16px; }
+  .table-select-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+  .table-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .table-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 12px; padding: 18px 0;
+    font-size: 20px; font-weight: 700; cursor: pointer;
+  }
+  .table-btn:hover { border-color: var(--accent); }
+
+  /* ── Guest header ── */
+  .guest-header { text-align: center; padding: 28px 0 20px; }
+  .table-chip {
+    display: inline-block; background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    padding: 4px 14px; border-radius: 20px; margin-bottom: 10px; text-transform: uppercase;
+  }
+  .guest-title { font-size: 28px; font-weight: 800; }
+  .change-table { text-align: center; color: var(--sub); font-size: 13px; margin-top: 20px; cursor: pointer; text-decoration: underline; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab-btn {
+    flex: 1; padding: 10px 0; border-radius: 10px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--sub); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .tab-btn.active { background: var(--surface); color: var(--text); border-color: #444; }
+
+  /* ── Form ── */
+  .form { display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: 1.5px; text-transform: uppercase; }
+  .search-row { display: flex; gap: 8px; }
+  input[type=text] {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; color: var(--text);
+    font-size: 15px; outline: none; width: 100%;
+    transition: border-color .2s;
+  }
+  input[type=text]:focus { border-color: #444; }
+  input[type=text].error { border-color: var(--accent); }
+  .search-icon-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0 16px; font-size: 20px; cursor: pointer; flex-shrink: 0; color: var(--text);
+  }
+
+  /* ── Match results ── */
+  .match-loading { text-align: center; color: var(--sub); font-size: 14px; padding: 8px 0; }
+  .matches-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .matches-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--sub); text-transform: uppercase; padding: 12px 14px 8px; }
+  .match-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--border); cursor: pointer; }
+  .match-item:hover { background: #1a1a2a; }
+  .match-song { font-weight: 700; font-size: 15px; }
+  .match-artist { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .conf-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+  .conf-high { background: #002e1a; color: var(--green); }
+  .conf-med  { background: #1a1200; color: var(--vip); }
+  .conf-low  { background: #1a0a0d; color: var(--accent); }
+  .not-my-match { padding: 12px 14px; font-size: 13px; color: var(--sub); border-top: 1px solid var(--border); cursor: pointer; text-align: center; }
+  .not-my-match:hover { color: var(--text); }
+
+  /* ── Confirmed song ── */
+  .confirmed-wrap { background: #001a10; border: 1px solid rgba(0,201,122,.27); border-radius: 12px; padding: 14px 16px; }
+  .confirmed-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--green); text-transform: uppercase; margin-bottom: 6px; }
+  .confirmed-song { font-size: 18px; font-weight: 800; }
+  .confirmed-artist { font-size: 13px; color: var(--sub); margin-top: 2px; }
+  .confirmed-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .yt-preview-link { font-size: 13px; color: var(--accent); text-decoration: none; font-weight: 600; }
+  .change-song-btn { background: transparent; border: none; color: var(--sub); font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+  /* ── Name / VIP ── */
+  .vip-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all .2s;
+  }
+  .vip-toggle.active { border-color: var(--vip); background: #1a1200; }
+  .vip-left { display: flex; align-items: center; gap: 12px; }
+  .vip-icon { font-size: 24px; }
+  .vip-title { font-weight: 700; font-size: 15px; }
+  .vip-desc { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .vip-price { font-weight: 800; font-size: 20px; color: var(--vip); }
+  .vip-note { background: #1a1200; border: 1px solid rgba(245,166,35,.2); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--vip); text-align: center; }
+
+  /* ── Submit ── */
+  .submit-btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 700;
+    cursor: pointer; margin-top: 4px; width: 100%;
+  }
+  .submit-btn:hover { opacity: .9; }
+
+  /* ── Success ── */
+  #screen-success { padding: 0 16px 32px; }
+  .success-top { text-align: center; padding: 32px 0 24px; }
+  .success-emoji { font-size: 56px; margin-bottom: 8px; }
+  .success-title { font-size: 30px; font-weight: 800; }
+  .success-sub { font-size: 15px; color: var(--sub); margin-top: 6px; }
+  .confirmed-song-badge { display: inline-block; margin-top: 8px; background: #001a10; border: 1px solid rgba(0,201,122,.27); border-radius: 8px; padding: 5px 12px; font-size: 13px; color: var(--green); }
+  .recs-loading { text-align: center; color: var(--sub); font-size: 14px; padding: 16px 0; }
+  .recs-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .recs-title { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: var(--sub); text-transform: uppercase; margin-bottom: 12px; }
+  .rec-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .rec-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .rec-song { font-weight: 700; font-size: 14px; }
+  .rec-artist { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .rec-reason { font-size: 12px; color: #888; margin-top: 4px; font-style: italic; }
+  .rec-order-btn { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .again-btn { display: block; width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 13px 0; font-size: 14px; cursor: pointer; text-align: center; }
+
+  /* ── Category picker ── */
+  #screen-explore { padding: 0 16px; }
+  .cat-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .cat-sub { font-size: 13px; color: var(--sub); margin-bottom: 20px; }
+  .cat-group { margin-bottom: 16px; }
+  .cat-group-label { font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--sub); border-radius: 20px; padding: 7px 14px;
+    font-size: 13px; cursor: pointer; font-weight: 500;
+  }
+  .chip.active { border-color: var(--accent); color: var(--accent); background: #1a0008; }
+  .cat-search-btn {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+  }
+  .cat-search-btn:disabled { background: #444; cursor: not-allowed; }
+  .cat-results { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .cat-result { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+  .cat-result:hover { border-color: #444; }
+  .cat-result-info { flex: 1; }
+  .cat-result-song { font-weight: 700; font-size: 14px; }
+  .cat-result-artist { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .diff-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+  .diff-easy   { background: rgba(0,201,122,.13); color: var(--green); }
+  .diff-medium { background: rgba(245,166,35,.13); color: var(--vip); }
+  .diff-hard   { background: rgba(255,45,85,.13); color: var(--accent); }
+
+  /* ── Host ── */
+  #screen-host { padding: 0 16px; }
+  .host-header { padding: 24px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .host-title { font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+  .host-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stat-badge { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 13px; font-weight: 600; }
+  .stat-vip { border-color: var(--vip); color: var(--vip); }
+  .stat-played { border-color: var(--green); color: var(--green); }
+
+  .next-card { background: #0f0010; border: 1px solid rgba(255,45,85,.27); border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+  .next-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; }
+  .next-song { font-size: 22px; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .next-artist { font-size: 14px; color: var(--sub); margin-bottom: 4px; }
+  .next-meta { font-size: 13px; color: var(--sub); margin-bottom: 16px; }
+  .vip-tag { background: var(--vip); color: #000; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; }
+
+  .yt-search-btn {
+    display: block; width: 100%;
+    background: #1a0a0d; border: 1px solid rgba(255,45,85,.4);
+    border-radius: 10px; padding: 13px 16px;
+    font-size: 14px; font-weight: 700; color: var(--accent);
+    text-decoration: none; text-align: center; margin-bottom: 8px;
+  }
+  .yt-search-btn:hover { background: #250d12; }
+  .yt-secondary { display: flex; gap: 12px; margin-bottom: 14px; }
+  .yt-small-link { font-size: 12px; color: var(--sub); text-decoration: underline; cursor: pointer; }
+  .played-btn {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--sub); border-radius: 10px; padding: 11px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .played-btn:hover { color: var(--text); }
+  .empty-next { text-align: center; padding: 32px 0; font-size: 16px; color: var(--sub); }
+
+  .section { margin-bottom: 24px; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--sub); text-transform: uppercase; margin-bottom: 12px; }
+  .clear-link { color: var(--accent); cursor: pointer; margin-left: 8px; }
+  .empty-txt { color: var(--sub); font-size: 14px; text-align: center; padding: 16px 0; }
+
+  .q-item { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--border); }
+  .q-item.vip { border-color: rgba(245,166,35,.33); background: #120f00; }
+  .q-num { font-size: 16px; font-weight: 800; color: var(--sub); min-width: 22px; text-align: center; }
+  .q-info { flex: 1; min-width: 0; }
+  .q-song { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .q-meta { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .remove-btn { background: transparent; border: none; color: var(--sub); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+  .remove-btn:hover { color: var(--accent); }
+
+  .played-item { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 0; border-bottom: 1px solid var(--border); opacity: .5; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <button class="mode-btn active" id="btn-guest" onclick="setMode('guest')">🎤 Гість</button>
+    <button class="mode-btn" id="btn-host" onclick="setMode('host')">🎙 Ведуча</button>
+  </div>
+
+  <!-- TABLE SELECT -->
+  <div id="screen-table" class="visible" style="padding:32px 16px;text-align:center">
+    <div class="table-select-title">Обери свій стіл</div>
+    <div class="table-grid" id="table-grid"></div>
+  </div>
+
+  <!-- GUEST ORDER -->
+  <div id="screen-guest" class="screen">
+    <div class="guest-header">
+      <div class="table-chip" id="table-chip">Стіл №1</div>
+      <div class="guest-title">🎵 Карааоке</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-order" onclick="setTab('order')">Замовити пісню</button>
+      <button class="tab-btn" id="tab-explore" onclick="setTab('explore')">Не знаю що хочу</button>
+    </div>
+
+    <!-- Order form -->
+    <div id="tab-order-content" class="form">
+      <div class="field">
+        <label>Яку пісню хочеш заспівати?</label>
+        <div class="search-row">
+          <input type="text" id="song-query" placeholder="Назва, слова, виконавець..." onkeydown="if(event.key==='Enter')searchSong()">
+          <button class="search-icon-btn" onclick="searchSong()" id="search-btn">🔍</button>
+        </div>
+      </div>
+
+      <div id="match-loading" class="match-loading hidden">Шукаю пісню...</div>
+      <div id="matches-wrap" class="hidden"></div>
+
+      <div id="confirmed-wrap" class="confirmed-wrap hidden">
+        <div class="confirmed-label">✓ Обрано</div>
+        <div class="confirmed-song" id="confirmed-song-text"></div>
+        <div class="confirmed-artist" id="confirmed-artist-text"></div>
+        <div class="confirmed-actions">
+          <a id="yt-preview-link" href="#" target="_blank" class="yt-preview-link">▶ Послухати / перевірити текст</a>
+          <button class="change-song-btn" onclick="clearConfirmed()">змінити</button>
+        </div>
+      </div>
+
+      <div id="name-vip-section" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+        <div class="field">
+          <label>Твоє ім'я</label>
+          <input type="text" id="guest-name" placeholder="Як оголосити?">
+        </div>
+
+        <div class="vip-toggle" id="vip-toggle" onclick="toggleVip()">
+          <div class="vip-left">
+            <span class="vip-icon">⚡</span>
+            <div>
+              <div class="vip-title">Поза чергою</div>
+              <div class="vip-desc">Пісня прозвучить найближчим часом</div>
+            </div>
+          </div>
+          <div class="vip-price">50 zł</div>
+        </div>
+
+        <div id="vip-note" class="vip-note hidden">💳 Оплата готівкою у ведучої</div>
+
+        <button class="submit-btn" id="submit-btn" onclick="submitOrder()">🎤 Додати до черги</button>
+      </div>
+    </div>
+
+    <!-- Explore tab -->
+    <div id="tab-explore-content" class="hidden">
+      <div class="cat-title">🎼 Не знаєш що заспівати?</div>
+      <div class="cat-sub">Обери фільтри — AI підбере пісні</div>
+      <div id="cat-filters"></div>
+      <button class="cat-search-btn" id="cat-search-btn" onclick="searchByCategory()">✨ Підібрати пісні</button>
+      <div class="cat-results" id="cat-results"></div>
+    </div>
+
+    <div class="change-table" onclick="changeTable()">Змінити стіл</div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="screen-success" class="screen">
+    <div class="success-top">
+      <div class="success-emoji">🎤</div>
+      <div class="success-title">Замовлено!</div>
+      <div class="success-sub" id="success-sub"></div>
+      <div class="confirmed-song-badge" id="success-song-badge"></div>
+    </div>
+    <div id="recs-loading" class="recs-loading hidden">✨ Підбираю схожі пісні...</div>
+    <div id="recs-wrap" class="hidden"></div>
+    <button class="again-btn" onclick="resetGuest()">Замовити ще</button>
+  </div>
+
+  <!-- HOST -->
+  <div id="screen-host" class="screen">
+    <div class="host-header">
+      <div class="host-title">🎙 Панель ведучої</div>
+      <div class="host-stats">
+        <span class="stat-badge" id="stat-queue">Черга: 0</span>
+        <span class="stat-badge stat-vip" id="stat-vip">⚡ 0</span>
+        <span class="stat-badge stat-played" id="stat-played">✓ 0</span>
+      </div>
+    </div>
+    <div id="next-card"></div>
+    <div class="section">
+      <div class="section-title" id="queue-section-title">Черга (0)</div>
+      <div id="queue-list"></div>
+    </div>
+    <div class="section" id="played-section" style="display:none">
+      <div class="section-title">
+        Зіграно (<span id="played-count">0</span>)
+        <span class="clear-link" onclick="clearPlayed()">очистити</span>
+      </div>
+      <div id="played-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const STATE = {
+  mode: 'guest',          // guest | host
+  currentTable: null,
+  queue: [],
+  confirmedSong: '',
+  confirmedArtist: '',
+  isVip: false,
+};
+
+const CATEGORIES = {
+  era:   ['60-70-ті','80-ті','90-ті','2000-ні','2010+','Сучасне'],
+  genre: ['Поп','Рок','R&B / Soul','Хіп-хоп','Електронна','Класика','Українська','Джаз'],
+  mood:  ['Весело / Танці','Романтика','Гімн / Гучно','Ліричне / Тихо','Дует','Групове'],
+};
+
+const catFilters = { era: '', genre: '', mood: '' };
+const MAX_VIP_IN_ROW = 2;
+
+function genId() { return Math.random().toString(36).substr(2,9); }
+
+// ── Claude API ─────────────────────────────────────────────────────────────
+async function askClaude(prompt) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text || '';
+  } catch { return ''; }
+}
+
+async function recognizeSong(query) {
+  const text = await askClaude(
+    `Користувач у карааоке-барі вписав: "${query}".
+Визнач що це за пісня. Може бути часткова назва, слова, або назва без виконавця.
+Поверни до 3 найбільш імовірних варіантів.
+Відповідай ТІЛЬКИ JSON без markdown:
+[{"song":"Повна назва","artist":"Виконавець","confidence":"high/medium/low"}]`
+  );
+  try { return JSON.parse(text.replace(/\`\`\`json|\`\`\`/g,'').trim()); }
+  catch { return []; }
+}
+
+async function getRecommendations(song, artist) {
+  const recent = STATE.queue.filter(i=>i.played).slice(-5).map(i=>`"${i.song}"`).join(', ');
+  const text = await askClaude(
+    `Ти помічник у барі-карааоке. Гість замовив "${song}"${artist?` (${artist})`:''}.\n${recent?`Останні пісні: ${recent}`:''}
+Дай 3 рекомендації схожих пісень для карааоке — враховуй вокальну складність і вайб залу.
+Відповідай ТІЛЬКИ JSON без markdown:
+[{"song":"Назва","artist":"Виконавець","reason":"Чому (1 речення)"}]`
+  );
+  try { return JSON.parse(text.replace(/\`\`\`json|\`\`\`/g,'').trim()); }
+  catch { return []; }
+}
+
+async function getCategoryRecs(filters) {
+  const parts = [];
+  if (filters.era) parts.push(`епоха: ${filters.era}`);
+  if (filters.genre) parts.push(`жанр: ${filters.genre}`);
+  if (filters.mood) parts.push(`настрій: ${filters.mood}`);
+  const text = await askClaude(
+    `Ти помічник у барі-карааоке. Гість шукає пісні за фільтрами: ${parts.join(', ')}.
+Дай 6 конкретних пісень для карааоке.
+Відповідай ТІЛЬКИ JSON без markdown:
+[{"song":"Назва","artist":"Виконавець","difficulty":"легка/середня/складна"}]`
+  );
+  try { return JSON.parse(text.replace(/\`\`\`json|\`\`\`/g,'').trim()); }
+  catch { return []; }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  // Build table grid
+  const grid = document.getElementById('table-grid');
+  for (let i=1; i<=12; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'table-btn';
+    btn.textContent = i;
+    btn.onclick = () => selectTable(i);
+    grid.appendChild(btn);
+  }
+
+  // Check URL param for table
+  const params = new URLSearchParams(location.search);
+  const t = parseInt(params.get('table'));
+  if (t >= 1 && t <= 12) selectTable(t);
+
+  // Build category filters
+  buildCategoryFilters();
+}
+
+function buildCategoryFilters() {
+  const container = document.getElementById('cat-filters');
+  const labels = { era: 'Епоха', genre: 'Жанр', mood: 'Настрій' };
+  container.innerHTML = '';
+  for (const [key, options] of Object.entries(CATEGORIES)) {
+    const group = document.createElement('div');
+    group.className = 'cat-group';
+    group.innerHTML = `<div class="cat-group-label">${labels[key]}</div><div class="cat-chips" id="chips-${key}"></div>`;
+    container.appendChild(group);
+    const chipsEl = group.querySelector(`#chips-${key}`);
+    options.forEach(opt => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = opt;
+      chip.onclick = () => {
+        catFilters[key] = catFilters[key] === opt ? '' : opt;
+        chip.classList.toggle('active', catFilters[key] === opt);
+        // deactivate siblings
+        chipsEl.querySelectorAll('.chip').forEach(c => {
+          if (c !== chip) c.classList.remove('active');
+        });
+        if (catFilters[key] !== opt) catFilters[key] = '';
+        else catFilters[key] = opt;
+      };
+      chipsEl.appendChild(chip);
+    });
+  }
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showScreen(id) {
+  ['screen-table','screen-guest','screen-success','screen-host','screen-explore'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) { el.classList.remove('visible'); el.style.display = 'none'; }
+  });
+  const target = document.getElementById(id);
+  if (target) { target.style.display = 'block'; target.classList.add('visible'); }
+}
+
+function setMode(mode) {
+  STATE.mode = mode;
+  document.getElementById('btn-guest').classList.toggle('active', mode==='guest');
+  document.getElementById('btn-host').classList.toggle('active', mode==='host');
+  if (mode === 'host') {
+    showScreen('screen-host');
+    renderHost();
+  } else {
+    if (STATE.currentTable) showScreen('screen-guest');
+    else showScreen('screen-table');
+  }
+}
+
+function selectTable(n) {
+  STATE.currentTable = n;
+  document.getElementById('table-chip').textContent = `Стіл №${n}`;
+  resetGuest();
+  showScreen('screen-guest');
+}
+
+function changeTable() {
+  showScreen('screen-table');
+}
+
+function setTab(tab) {
+  document.getElementById('tab-order').classList.toggle('active', tab==='order');
+  document.getElementById('tab-explore').classList.toggle('active', tab==='explore');
+  document.getElementById('tab-order-content').classList.toggle('hidden', tab!=='order');
+  document.getElementById('tab-explore-content').classList.toggle('hidden', tab!=='explore');
+}
+
+// ── Guest: song search ─────────────────────────────────────────────────────
+async function searchSong() {
+  const query = document.getElementById('song-query').value.trim();
+  if (!query) return;
+
+  document.getElementById('search-btn').textContent = '⏳';
+  document.getElementById('search-btn').disabled = true;
+  document.getElementById('match-loading').classList.remove('hidden');
+  document.getElementById('matches-wrap').classList.add('hidden');
+  clearConfirmed();
+
+  const matches = await recognizeSong(query);
+
+  document.getElementById('match-loading').classList.add('hidden');
+  document.getElementById('search-btn').textContent = '🔍';
+  document.getElementById('search-btn').disabled = false;
+
+  if (!matches.length) {
+    confirmSong(query, '');
+    return;
+  }
+
+  renderMatches(matches);
+}
+
+function renderMatches(matches) {
+  const wrap = document.getElementById('matches-wrap');
+  wrap.innerHTML = `<div class="matches-label">Ти мав на увазі?</div>`;
+
+  matches.forEach(m => {
+    const confClass = m.confidence==='high' ? 'conf-high' : m.confidence==='medium' ? 'conf-med' : 'conf-low';
+    const confText = m.confidence==='high' ? '✓ точно' : m.confidence==='medium' ? 'можливо' : 'схоже';
+    const item = document.createElement('div');
+    item.className = 'match-item';
+    item.innerHTML = `
+      <div class="match-info">
+        <div class="match-song">${esc(m.song)}</div>
+        <div class="match-artist">${esc(m.artist)}</div>
+      </div>
+      <span class="conf-badge ${confClass}">${confText}</span>`;
+    item.onclick = () => confirmSong(m.song, m.artist);
+    wrap.appendChild(item);
+  });
+
+  const notMine = document.createElement('div');
+  notMine.className = 'not-my-match';
+  notMine.textContent = 'Жодне не підходить — замовити як є';
+  notMine.onclick = () => confirmSong(document.getElementById('song-query').value.trim(), '');
+  wrap.appendChild(notMine);
+
+  wrap.classList.remove('hidden');
+}
+
+function confirmSong(song, artist) {
+  STATE.confirmedSong = song;
+  STATE.confirmedArtist = artist;
+
+  document.getElementById('matches-wrap').classList.add('hidden');
+  document.getElementById('confirmed-song-text').textContent = song;
+  document.getElementById('confirmed-artist-text').textContent = artist || '';
+  document.getElementById('confirmed-artist-text').style.display = artist ? 'block' : 'none';
+
+  const ytQ = encodeURIComponent(`${artist ? artist+' ' : ''}${song}`);
+  document.getElementById('yt-preview-link').href = `https://www.youtube.com/results?search_query=${ytQ}`;
+  document.getElementById('confirmed-wrap').classList.remove('hidden');
+
+  const nameVip = document.getElementById('name-vip-section');
+  nameVip.classList.remove('hidden');
+  nameVip.style.display = 'flex';
+}
+
+function clearConfirmed() {
+  STATE.confirmedSong = '';
+  STATE.confirmedArtist = '';
+  document.getElementById('confirmed-wrap').classList.add('hidden');
+  const nameVip = document.getElementById('name-vip-section');
+  nameVip.classList.add('hidden');
+  nameVip.style.display = 'none';
+  document.getElementById('matches-wrap').classList.add('hidden');
+}
+
+// ── VIP toggle ─────────────────────────────────────────────────────────────
+function toggleVip() {
+  STATE.isVip = !STATE.isVip;
+  document.getElementById('vip-toggle').classList.toggle('active', STATE.isVip);
+  document.getElementById('vip-note').classList.toggle('hidden', !STATE.isVip);
+  document.getElementById('submit-btn').textContent = STATE.isVip ? '⚡ Замовити за 50 zł' : '🎤 Додати до черги';
+}
+
+// ── Submit ─────────────────────────────────────────────────────────────────
+async function submitOrder() {
+  if (!STATE.confirmedSong) {
+    document.getElementById('song-query').classList.add('error');
+    setTimeout(() => document.getElementById('song-query').classList.remove('error'), 2000);
+    return;
+  }
+  const name = document.getElementById('guest-name').value.trim();
+  const entry = {
+    id: genId(),
+    song: STATE.confirmedSong,
+    artist: STATE.confirmedArtist,
+    name, isVip: STATE.isVip,
+    tableNumber: STATE.currentTable,
+    played: false,
+  };
+  STATE.queue.push(entry);
+
+  // Show success
+  showScreen('screen-success');
+  document.getElementById('success-sub').textContent = STATE.isVip
+    ? '⚡ Поза чергою — очікуй незабаром!'
+    : 'Твою пісню додано до черги';
+  document.getElementById('success-song-badge').textContent =
+    `${STATE.confirmedArtist ? STATE.confirmedArtist+' — ' : ''}${STATE.confirmedSong}`;
+
+  // Get recommendations async
+  document.getElementById('recs-loading').classList.remove('hidden');
+  document.getElementById('recs-wrap').classList.add('hidden');
+  const recs = await getRecommendations(STATE.confirmedSong, STATE.confirmedArtist);
+  document.getElementById('recs-loading').classList.add('hidden');
+  if (recs.length) renderRecs(recs);
+
+  // Update host if visible
+  if (STATE.mode === 'host') renderHost();
+}
+
+function renderRecs(recs) {
+  const wrap = document.getElementById('recs-wrap');
+  wrap.innerHTML = `<div class="recs-title">Може ще заспіваєш?</div>`;
+  recs.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'rec-item';
+    item.innerHTML = `
+      <div style="flex:1">
+        <div class="rec-song">${esc(r.song)}</div>
+        <div class="rec-artist">${esc(r.artist)}</div>
+        <div class="rec-reason">${esc(r.reason)}</div>
+      </div>
+      <button class="rec-order-btn">+ Замовити</button>`;
+    item.querySelector('button').onclick = () => {
+      confirmSong(r.song, r.artist);
+      document.getElementById('song-query').value = `${r.artist} — ${r.song}`;
+      showScreen('screen-guest');
+      setTab('order');
+    };
+    wrap.appendChild(item);
+  });
+  wrap.classList.remove('hidden');
+}
+
+function resetGuest() {
+  STATE.confirmedSong = '';
+  STATE.confirmedArtist = '';
+  STATE.isVip = false;
+  document.getElementById('song-query').value = '';
+  document.getElementById('guest-name').value = '';
+  document.getElementById('vip-toggle').classList.remove('active');
+  document.getElementById('vip-note').classList.add('hidden');
+  document.getElementById('submit-btn').textContent = '🎤 Додати до черги';
+  document.getElementById('matches-wrap').classList.add('hidden');
+  document.getElementById('confirmed-wrap').classList.add('hidden');
+  const nameVip = document.getElementById('name-vip-section');
+  nameVip.classList.add('hidden');
+  nameVip.style.display = 'none';
+  setTab('order');
+  showScreen('screen-guest');
+}
+
+// ── Category search ────────────────────────────────────────────────────────
+async function searchByCategory() {
+  if (!catFilters.era && !catFilters.genre && !catFilters.mood) return;
+  const btn = document.getElementById('cat-search-btn');
+  btn.disabled = true; btn.textContent = '⏳ Шукаю...';
+  document.getElementById('cat-results').innerHTML = '';
+  const recs = await getCategoryRecs(catFilters);
+  btn.disabled = false; btn.textContent = '✨ Підібрати пісні';
+  renderCatResults(recs);
+}
+
+function renderCatResults(recs) {
+  const container = document.getElementById('cat-results');
+  container.innerHTML = '';
+  recs.forEach(r => {
+    const diffClass = r.difficulty==='легка' ? 'diff-easy' : r.difficulty==='складна' ? 'diff-hard' : 'diff-medium';
+    const item = document.createElement('div');
+    item.className = 'cat-result';
+    item.innerHTML = `
+      <div class="cat-result-info">
+        <div class="cat-result-song">${esc(r.song)}</div>
+        <div class="cat-result-artist">${esc(r.artist)}</div>
+      </div>
+      <span class="diff-badge ${diffClass}">${esc(r.difficulty)}</span>
+      <span style="color:var(--sub);font-size:16px">→</span>`;
+    item.onclick = () => {
+      confirmSong(r.song, r.artist);
+      document.getElementById('song-query').value = `${r.artist} — ${r.song}`;
+      setTab('order');
+    };
+    container.appendChild(item);
+  });
+}
+
+// ── Host ───────────────────────────────────────────────────────────────────
+function buildMergedQueue() {
+  const reg = STATE.queue.filter(i => !i.isVip && !i.played);
+  const vip = STATE.queue.filter(i =>  i.isVip && !i.played);
+  const merged = []; let vipInRow = 0;
+  while (reg.length || vip.length) {
+    if (vip.length && vipInRow < MAX_VIP_IN_ROW) { merged.push(vip.shift()); vipInRow++; }
+    else if (reg.length) { merged.push(reg.shift()); vipInRow = 0; }
+    else { merged.push(vip.shift()); vipInRow++; }
+  }
+  return merged;
+}
+
+function renderHost() {
+  const merged = buildMergedQueue();
+  const played = STATE.queue.filter(i => i.played);
+  const regCount = STATE.queue.filter(i => !i.isVip && !i.played).length;
+  const vipCount = STATE.queue.filter(i =>  i.isVip && !i.played).length;
+
+  document.getElementById('stat-queue').textContent = `Черга: ${regCount}`;
+  document.getElementById('stat-vip').textContent   = `⚡ ${vipCount}`;
+  document.getElementById('stat-played').textContent= `✓ ${played.length}`;
+
+  // Next card
+  const nextCard = document.getElementById('next-card');
+  const next = merged[0];
+  if (next) {
+    const ytQ = encodeURIComponent(`${next.artist ? next.artist+' ' : ''}${next.song} караоке`);
+    const ytMin = encodeURIComponent(`${next.artist ? next.artist+' ' : ''}${next.song} мінус`);
+    const ytOrig = encodeURIComponent(`${next.artist ? next.artist+' ' : ''}${next.song}`);
+    nextCard.innerHTML = `
+      <div class="next-card">
+        <div class="next-label">НАСТУПНА</div>
+        <div class="next-song">${next.isVip?'<span class="vip-tag">⚡ VIP</span>':''}${esc(next.song)}</div>
+        ${next.artist?`<div class="next-artist">${esc(next.artist)}</div>`:''}
+        <div class="next-meta">Стіл №${next.tableNumber}${next.name?' · '+esc(next.name):''}</div>
+        <a class="yt-search-btn" href="https://www.youtube.com/results?search_query=${ytQ}" target="_blank">
+          ▶ Шукати "${next.artist?esc(next.artist)+' — ':''}${esc(next.song)}" на YouTube
+        </a>
+        <div class="yt-secondary">
+          <a class="yt-small-link" href="https://www.youtube.com/results?search_query=${ytMin}" target="_blank">мінус</a>
+          <a class="yt-small-link" href="https://www.youtube.com/results?search_query=${ytOrig}" target="_blank">оригінал</a>
+        </div>
+        <button class="played-btn" onclick="markPlayed('${next.id}')">✓ Позначити як зіграну</button>
+      </div>`;
+  } else {
+    nextCard.innerHTML = '<div class="empty-next">Черга порожня 🎉</div>';
+  }
+
+  // Queue list
+  const queueList = document.getElementById('queue-list');
+  document.getElementById('queue-section-title').textContent = `Черга (${merged.length})`;
+  queueList.innerHTML = '';
+  if (!merged.length) {
+    queueList.innerHTML = '<div class="empty-txt">Поки нікого</div>';
+  } else {
+    merged.forEach((item, idx) => {
+      const el = document.createElement('div');
+      el.className = `q-item${item.isVip?' vip':''}`;
+      el.innerHTML = `
+        <div class="q-num">${idx+1}</div>
+        <div class="q-info">
+          <div class="q-song">${item.isVip?'⚡ ':''}${esc(item.song)}</div>
+          <div class="q-meta">Стіл №${item.tableNumber}${item.name?' · '+esc(item.name):''}${item.artist?' · '+esc(item.artist):''}</div>
+        </div>
+        <button class="remove-btn" onclick="removeItem('${item.id}')">✕</button>`;
+      queueList.appendChild(el);
+    });
+  }
+
+  // Played
+  const playedSection = document.getElementById('played-section');
+  if (played.length) {
+    playedSection.style.display = 'block';
+    document.getElementById('played-count').textContent = played.length;
+    const playedList = document.getElementById('played-list');
+    playedList.innerHTML = '';
+    played.slice(-5).reverse().forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'played-item';
+      el.innerHTML = `<span>${esc(item.song)}</span><span>Стіл №${item.tableNumber}</span>`;
+      playedList.appendChild(el);
+    });
+  } else {
+    playedSection.style.display = 'none';
+  }
+}
+
+function markPlayed(id) {
+  const item = STATE.queue.find(i => i.id === id);
+  if (item) item.played = true;
+  renderHost();
+}
+
+function removeItem(id) {
+  STATE.queue = STATE.queue.filter(i => i.id !== id);
+  renderHost();
+}
+
+function clearPlayed() {
+  STATE.queue = STATE.queue.filter(i => !i.played);
+  renderHost();
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Start ──────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
